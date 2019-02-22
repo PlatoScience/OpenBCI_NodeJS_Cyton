@@ -1,15 +1,15 @@
-'use strict';
-const EventEmitter = require('events').EventEmitter;
-const util = require('util');
-const SerialPort = require('serialport');
-const OpenBCIUtilities = require('@openbci/utilities');
-const obciUtils = require('@openbci/utilities/dist/utilities');
-const k = require('@openbci/utilities/dist/constants');
+"use strict";
+const EventEmitter = require("events").EventEmitter;
+const util = require("util");
+const SerialPort = require("serialport");
+const OpenBCIUtilities = require("@openbci/utilities");
+const obciUtils = require("@openbci/utilities/dist/utilities");
+const k = require("@openbci/utilities/dist/constants");
 const obciDebug = OpenBCIUtilities.debug;
-const OpenBCISimulator = require('./openBCISimulator');
-const Sntp = require('sntp');
-const bufferEqual = require('buffer-equal');
-const _ = require('lodash');
+const OpenBCISimulator = require("./openBCISimulator");
+const Sntp = require("sntp");
+const bufferEqual = require("buffer-equal");
+const _ = require("lodash");
 
 /**
  * @typedef {Object} InitializationObject Board optional configurations.
@@ -72,7 +72,7 @@ const _ = require('lodash');
  *              `none` - Do not inject line noise.
  *
  * @property {Number} simulatorSampleRate The sample rate to use for the simulator. Simulator will set to 125 if
-  *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
+ *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
  *                  setting and this sample rate will be used. (Default is `250`)
  *
  * @property {Boolean} simulatorSerialPortFailure Simulates not being able to open a serial connection. Most likely
@@ -92,7 +92,7 @@ const _ = require('lodash');
  *
  * @property {Boolean} sendCounts - Send integer raw counts instead of scaled floats.
  *           (Default `false`)
-*/
+ */
 
 /**
  * Options object
@@ -100,7 +100,12 @@ const _ = require('lodash');
  * @private
  */
 let _options = {
-  boardType: [k.OBCIBoardCyton, k.OBCIBoardDefault, k.OBCIBoardDaisy, k.OBCIBoardGanglion],
+  boardType: [
+    k.OBCIBoardCyton,
+    k.OBCIBoardDefault,
+    k.OBCIBoardDaisy,
+    k.OBCIBoardGanglion
+  ],
   baudRate: 115200,
   hardSet: false,
   sendCounts: false,
@@ -108,18 +113,31 @@ let _options = {
   simulatorBoardFailure: false,
   simulatorDaisyModuleAttached: false,
   simulatorDaisyModuleCanBeAttached: true,
-  simulatorFirmwareVersion: [k.OBCIFirmwareV1, k.OBCIFirmwareV2, k.OBCIFirmwareV3],
-  simulatorFragmentation: [k.OBCISimulatorFragmentationNone, k.OBCISimulatorFragmentationRandom, k.OBCISimulatorFragmentationFullBuffers, k.OBCISimulatorFragmentationOneByOne],
+  simulatorFirmwareVersion: [
+    k.OBCIFirmwareV1,
+    k.OBCIFirmwareV2,
+    k.OBCIFirmwareV3
+  ],
+  simulatorFragmentation: [
+    k.OBCISimulatorFragmentationNone,
+    k.OBCISimulatorFragmentationRandom,
+    k.OBCISimulatorFragmentationFullBuffers,
+    k.OBCISimulatorFragmentationOneByOne
+  ],
   simulatorLatencyTime: 16,
   simulatorBufferSize: 4096,
   simulatorHasAccelerometer: true,
   simulatorInternalClockDrift: 0,
   simulatorInjectAlpha: true,
-  simulatorInjectLineNoise: [k.OBCISimulatorLineNoiseHz60, k.OBCISimulatorLineNoiseHz50, k.OBCISimulatorLineNoiseNone],
+  simulatorInjectLineNoise: [
+    k.OBCISimulatorLineNoiseHz60,
+    k.OBCISimulatorLineNoiseHz50,
+    k.OBCISimulatorLineNoiseNone
+  ],
   simulatorSampleRate: 250,
   simulatorSerialPortFailure: false,
   sntpTimeSync: false,
-  sntpTimeSyncHost: 'pool.ntp.org',
+  sntpTimeSyncHost: "pool.ntp.org",
   sntpTimeSyncPort: 123,
   verbose: false,
   debug: false
@@ -131,7 +149,7 @@ let _options = {
  * @constructor
  * @author AJ Keller (@pushtheworldllc)
  */
-function Cyton (options) {
+function Cyton(options) {
   if (!(this instanceof Cyton)) {
     return new Cyton(options);
   }
@@ -141,11 +159,11 @@ function Cyton (options) {
   /** Configuring Options */
   let o;
   for (o in _options) {
-    let userOption = (o in options) ? o : o.toLowerCase();
+    let userOption = o in options ? o : o.toLowerCase();
     let userValue = options[userOption];
     delete options[userOption];
 
-    if (typeof _options[o] === 'object') {
+    if (typeof _options[o] === "object") {
       // an array specifying a list of choices
       // if the choice is not in the list, the first one is defaulted to
 
@@ -177,7 +195,9 @@ function Cyton (options) {
    * @type {RawDataToSample}
    * @private
    */
-  this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(k.numberOfChannelsForBoardType(this.options.boardType));
+  this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(
+    k.numberOfChannelsForBoardType(this.options.boardType)
+  );
   this._rawDataPacketToSample.scale = !this.options.sendCounts;
   this._rawDataPacketToSample.protocol = k.OBCIProtocolSerial;
   this._rawDataPacketToSample.verbose = this.options.verbose;
@@ -196,7 +216,7 @@ function Cyton (options) {
       major: 1,
       minor: 0,
       patch: 0,
-      raw: 'v1.0.0'
+      raw: "v1.0.0"
     },
     missedPackets: 0
   };
@@ -216,7 +236,9 @@ function Cyton (options) {
   // Numbers
   this.badPackets = 0;
   this.curParsingMode = k.OBCIParsingReset;
-  this.impedanceArray = obciUtils.impedanceArray(k.numberOfChannelsForBoardType(this.options.boardType));
+  this.impedanceArray = obciUtils.impedanceArray(
+    k.numberOfChannelsForBoardType(this.options.boardType)
+  );
   this.previousSampleNumber = -1;
   this.sampleCount = 0;
   this.timeOfPacketArrival = 0;
@@ -235,11 +257,11 @@ function Cyton (options) {
         }).then(() => this.sntpStart());
       })
       .then(() => {
-        if (this.options.verbose) console.log('SNTP: connected');
+        if (this.options.verbose) console.log("SNTP: connected");
       })
       .catch(err => {
         if (this.options.verbose) console.log(`Error [sntpStart] ${err}`);
-        this.emit('error', err);
+        this.emit("error", err);
       });
   }
 }
@@ -253,27 +275,27 @@ util.inherits(Cyton, EventEmitter);
  * @returns {Promise} if the board was able to connect.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.connect = function (portName) {
+Cyton.prototype.connect = function(portName) {
   return new Promise((resolve, reject) => {
-    if (this.isConnected()) return reject(Error('already connected!'));
+    if (this.isConnected()) return reject(Error("already connected!"));
     this.overrideInfoForBoardType(this.options.boardType);
     this.buffer = null;
     const readyFunc = () => {
       resolve();
-      this.removeListener('error', errorFunc);
+      this.removeListener("error", errorFunc);
     };
-    const errorFunc = (err) => {
+    const errorFunc = err => {
       reject(err);
-      this.removeListener('ready', readyFunc);
+      this.removeListener("ready", readyFunc);
     };
-    this.once('ready', readyFunc);
-    this.once('error', errorFunc);
+    this.once("ready", readyFunc);
+    this.once("error", errorFunc);
     /* istanbul ignore else */
     if (this.options.simulate || portName === k.OBCISimulatorPortName) {
       this.options.simulate = true;
       // If we are simulating, set portName to fake name
       this.portName = k.OBCISimulatorPortName;
-      if (this.options.verbose) console.log('using faux board ' + portName);
+      if (this.options.verbose) console.log("using faux board " + portName);
       this.serial = new OpenBCISimulator(this.portName, {
         accel: this.options.simulatorHasAccelerometer,
         alpha: this.options.simulatorInjectAlpha,
@@ -292,53 +314,64 @@ Cyton.prototype.connect = function (portName) {
       });
     } else {
       this.portName = portName;
-      if (this.options.verbose) console.log('using real board ' + portName);
-      this.serial = new SerialPort(portName, {
-        baudRate: this.options.baudRate
-      }, (err) => {
-        if (err) reject(err);
-      });
+      if (this.options.verbose) console.log("using real board " + portName);
+      this.serial = new SerialPort(
+        portName,
+        {
+          baudRate: this.options.baudRate
+        },
+        err => {
+          if (err) reject(err);
+        }
+      );
     }
 
-    if (this.options.verbose) console.log('Serial port connected');
+    if (this.options.verbose) console.log("Serial port connected");
 
-    this.serial.on('data', data => {
+    this.serial.on("data", data => {
       this._processBytes(data);
     });
-    this.serial.once('open', () => {
-      if (this.options.verbose) console.log('Serial port open');
+    this.serial.once("open", () => {
+      if (this.options.verbose) console.log("Serial port open");
       new Promise(resolve => {
         // TODO: document why this 300 ms delay is needed
         setTimeout(resolve, this.options.simulate ? 50 : 300);
-      }).then(() => {
-        if (this.options.verbose) console.log('Sending stop command, in case the device was left streaming...');
-        return this.write(k.OBCIStreamStop);
-      }).then(() => {
-        // TODO: document why this 250 ms delay is needed
-        return new Promise(resolve => setTimeout(resolve, 250));
-      }).then(() => {
-        if (this.options.verbose) console.log('Sending soft reset');
-        // TODO: this promise chain resolves early because
-        //  A. some legacy code (in tests) sets the ready handler after this resolves
-        // and
-        //  B. other legacy code (in tests) needs the simulator to reply with segmented packets, never fragmented
-        // which is C. not implemented yet except in a manner such that replies occur in the write handler,
-        // resulting in the EOT arriving before this resolves
-        // Fix one or more of the above 3 situations, then move resolve() to the next block.
-        // resolve();
-        return this.softReset();
-      }).then(() => {
-        if (this.options.verbose) console.log("Waiting for '$$$'");
-      });
+      })
+        .then(() => {
+          if (this.options.verbose)
+            console.log(
+              "Sending stop command, in case the device was left streaming..."
+            );
+          return this.write(k.OBCIStreamStop);
+        })
+        .then(() => {
+          // TODO: document why this 250 ms delay is needed
+          return new Promise(resolve => setTimeout(resolve, 250));
+        })
+        .then(() => {
+          if (this.options.verbose) console.log("Sending soft reset");
+          // TODO: this promise chain resolves early because
+          //  A. some legacy code (in tests) sets the ready handler after this resolves
+          // and
+          //  B. other legacy code (in tests) needs the simulator to reply with segmented packets, never fragmented
+          // which is C. not implemented yet except in a manner such that replies occur in the write handler,
+          // resulting in the EOT arriving before this resolves
+          // Fix one or more of the above 3 situations, then move resolve() to the next block.
+          // resolve();
+          return this.softReset();
+        })
+        .then(() => {
+          if (this.options.verbose) console.log("Waiting for '$$$'");
+        });
     });
-    this.serial.once('close', () => {
-      if (this.options.verbose) console.log('Serial Port Closed');
+    this.serial.once("close", () => {
+      if (this.options.verbose) console.log("Serial Port Closed");
       // 'close' is emitted in _disconnected()
-      this._disconnected('port closed');
+      this._disconnected("port closed");
     });
-    this.serial.once('error', (err) => {
-      if (this.options.verbose) console.log('Serial Port Error');
-      this.emit('error', err);
+    this.serial.once("error", err => {
+      if (this.options.verbose) console.log("Serial Port Error");
+      this.emit("error", err);
       this._disconnected(err);
     });
   });
@@ -348,18 +381,18 @@ Cyton.prototype.connect = function (portName) {
  * @description Called once when for any reason the serial port is no longer open.
  * @private
  */
-Cyton.prototype._disconnected = function (err) {
+Cyton.prototype._disconnected = function(err) {
   this._streaming = false;
 
   clearTimeout(this.writer);
   this.writer = null;
 
-  this.serial.removeAllListeners('close');
-  this.serial.removeAllListeners('error');
-  this.serial.removeAllListeners('data');
+  this.serial.removeAllListeners("close");
+  this.serial.removeAllListeners("error");
+  this.serial.removeAllListeners("data");
   this.serial = null;
 
-  this.emit('close');
+  this.emit("close");
 
   while (this.writeOutArray.length > 0) {
     let command = this.writeOutArray.pop();
@@ -373,11 +406,11 @@ Cyton.prototype._disconnected = function (err) {
  * @returns {Promise} - fulfilled by a successful close of the serial port object, rejected otherwise.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.disconnect = function () {
+Cyton.prototype.disconnect = function() {
   return Promise.resolve()
     .then(() => {
       if (this.isStreaming()) {
-        if (this.options.verbose) console.log('stop streaming');
+        if (this.options.verbose) console.log("stop streaming");
         return this.streamStop();
       } else {
         return Promise.resolve();
@@ -385,9 +418,9 @@ Cyton.prototype.disconnect = function () {
     })
     .then(() => {
       if (!this.isConnected()) {
-        return Promise.reject(Error('no board connected'));
+        return Promise.reject(Error("no board connected"));
       } else {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           // serial emitting 'close' will call _disconnected
           this.serial.close(() => {
             resolve();
@@ -401,7 +434,7 @@ Cyton.prototype.disconnect = function () {
  * @description Checks if the driver is connected to a board.
  * @returns {boolean} - True if connected.
  */
-Cyton.prototype.isConnected = function () {
+Cyton.prototype.isConnected = function() {
   if (!this.serial) return false;
   return this.serial.isOpen;
 };
@@ -410,7 +443,7 @@ Cyton.prototype.isConnected = function () {
  * @description Checks if the board is currently sending samples.
  * @returns {boolean} - True if streaming.
  */
-Cyton.prototype.isSimulating = function () {
+Cyton.prototype.isSimulating = function() {
   return this.options.simulate;
 };
 
@@ -418,7 +451,7 @@ Cyton.prototype.isSimulating = function () {
  * @description Checks if the board is currently sending samples.
  * @returns {boolean} - True if streaming.
  */
-Cyton.prototype.isStreaming = function () {
+Cyton.prototype.isStreaming = function() {
   return this._streaming;
 };
 
@@ -430,9 +463,10 @@ Cyton.prototype.isStreaming = function () {
  *           mean the board will start streaming.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.streamStart = function () {
+Cyton.prototype.streamStart = function() {
   return new Promise((resolve, reject) => {
-    if (this.isStreaming()) return reject(Error('Error [.streamStart()]: Already streaming'));
+    if (this.isStreaming())
+      return reject(Error("Error [.streamStart()]: Already streaming"));
     this._streaming = true;
     this.write(k.OBCIStreamStart).then(resolve, reject);
   });
@@ -446,9 +480,10 @@ Cyton.prototype.streamStart = function () {
  *           mean the board stopped streaming.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.streamStop = function () {
+Cyton.prototype.streamStop = function() {
   return new Promise((resolve, reject) => {
-    if (!this.isStreaming()) return reject(Error('Error [.streamStop()]: No stream to stop'));
+    if (!this.isStreaming())
+      return reject(Error("Error [.streamStop()]: No stream to stop"));
     this._streaming = false;
     this.write(k.OBCIStreamStop).then(resolve, reject);
   });
@@ -460,9 +495,9 @@ Cyton.prototype.streamStop = function () {
  * @returns {Promise} - Fulfilled if able to enter simulate mode, reject if not.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.simulatorEnable = function () {
+Cyton.prototype.simulatorEnable = function() {
   return new Promise((resolve, reject) => {
-    if (this.options.simulate) return reject(Error('Already simulating')); // Are we already in simulate mode?
+    if (this.options.simulate) return reject(Error("Already simulating")); // Are we already in simulate mode?
     if (this.isConnected()) {
       this.disconnect() // disconnect first
         .then(() => {
@@ -483,9 +518,9 @@ Cyton.prototype.simulatorEnable = function () {
  * @returns {Promise} - Fulfilled if able to stop simulate mode, reject if not.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.simulatorDisable = function () {
+Cyton.prototype.simulatorDisable = function() {
   return new Promise((resolve, reject) => {
-    if (!this.options.simulate) return reject(Error('Not simulating')); // Are we already not in simulate mode?
+    if (!this.options.simulate) return reject(Error("Not simulating")); // Are we already not in simulate mode?
     if (this.isConnected()) {
       this.disconnect()
         .then(() => {
@@ -508,22 +543,28 @@ Cyton.prototype.simulatorDisable = function () {
  * @returns {Promise}
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.write = function (dataToWrite) {
+Cyton.prototype.write = function(dataToWrite) {
   return new Promise((resolve, reject) => {
     if (!this.isConnected()) {
-      reject(Error('not connected'));
+      reject(Error("not connected"));
     } else {
-      if (Array.isArray(dataToWrite)) { // Got an input array
+      if (Array.isArray(dataToWrite)) {
+        // Got an input array
         let len = dataToWrite.length;
         for (let i = 0; i < len; i++) {
           this.writeOutArray.push({ cmd: dataToWrite[i], reject: reject });
         }
         this.writeOutArray[this.writeOutArray.length - 1].resolve = resolve;
       } else {
-        this.writeOutArray.push({ cmd: dataToWrite, reject: reject, resolve: resolve });
+        this.writeOutArray.push({
+          cmd: dataToWrite,
+          reject: reject,
+          resolve: resolve
+        });
       }
 
-      if (!this.writer) { // there is no writer started
+      if (!this.writer) {
+        // there is no writer started
         let writerFunction = () => {
           if (this.writeOutArray.length === 0) {
             this.writer = null;
@@ -533,16 +574,19 @@ Cyton.prototype.write = function (dataToWrite) {
           let command = this.writeOutArray.shift();
           let promise = this._writeAndDrain(command.cmd);
 
-          promise.then(() => {
-            this.writer = setTimeout(writerFunction, this.writeOutDelay);
-          }, () => {
-            // write failed but more commands may be pending that need a result
-            writerFunction();
-          });
+          promise.then(
+            () => {
+              this.writer = setTimeout(writerFunction, this.writeOutDelay);
+            },
+            () => {
+              // write failed but more commands may be pending that need a result
+              writerFunction();
+            }
+          );
 
           if (command.reject) {
             promise.catch(err => {
-              if (this.options.verbose) console.log('write failure: ' + err);
+              if (this.options.verbose) console.log("write failure: " + err);
               command.reject(err);
             });
           }
@@ -560,17 +604,17 @@ Cyton.prototype.write = function (dataToWrite) {
  * @returns {Promise} if signal was able to be sent
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._writeAndDrain = function (data) {
-  if (this.options.debug) obciDebug.default('>>>', data);
+Cyton.prototype._writeAndDrain = function(data) {
+  if (this.options.debug) obciDebug.default(">>>", data);
 
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Serial port not open'));
-    this.serial.write(data, (error) => {
+    if (!this.isConnected()) return reject(Error("Serial port not open"));
+    this.serial.write(data, error => {
       if (error) {
-        console.log('Error [writeAndDrain]: ' + error);
+        console.log("Error [writeAndDrain]: " + error);
         reject(error);
       } else {
-        this.serial.drain(function () {
+        this.serial.drain(function() {
           resolve();
         });
       }
@@ -587,12 +631,14 @@ Cyton.prototype._writeAndDrain = function (data) {
  * @returns {Promise} - Fulfilled with portName, rejected when can't find the board.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.autoFindOpenBCIBoard = function () {
+Cyton.prototype.autoFindOpenBCIBoard = function() {
   const serialPatterns = [
-    { // mac
+    {
+      // mac
       comName: /usbserial-D/
     },
-    { // linux
+    {
+      // linux
       comName: /^\/dev\/ttyUSB/,
       manufacturer: /^FTDI$/,
       serialNumber: /^FTDI_FT231X_USB_UART/,
@@ -604,31 +650,33 @@ Cyton.prototype.autoFindOpenBCIBoard = function () {
     /* istanbul ignore else  */
     if (this.options.simulate) {
       this.portName = k.OBCISimulatorPortName;
-      if (this.options.verbose) console.log('auto found sim board');
+      if (this.options.verbose) console.log("auto found sim board");
       resolve(k.OBCISimulatorPortName);
     } else {
       SerialPort.list((err, ports) => {
         if (err) {
-          if (this.options.verbose) console.log('serial port err');
+          if (this.options.verbose) console.log("serial port err");
           reject(err);
         }
         // This is one big if statement
-        if (ports.some(port => {
-          return serialPatterns.some(patterns => {
-            for (let attribute in patterns) {
-              if (!String(port[attribute]).match(patterns[attribute])) {
-                return false;
+        if (
+          ports.some(port => {
+            return serialPatterns.some(patterns => {
+              for (let attribute in patterns) {
+                if (!String(port[attribute]).match(patterns[attribute])) {
+                  return false;
+                }
               }
-            }
-            this.portName = port.comName;
-            return true;
-          });
-        })) {
-          if (this.options.verbose) console.log('auto found board');
+              this.portName = port.comName;
+              return true;
+            });
+          })
+        ) {
+          if (this.options.verbose) console.log("auto found board");
           resolve(this.portName);
         } else {
-          if (this.options.verbose) console.log('could not find board');
-          reject(Error('Could not auto find board'));
+          if (this.options.verbose) console.log("could not find board");
+          reject(Error("Could not auto find board"));
         }
       });
     }
@@ -643,7 +691,7 @@ Cyton.prototype.autoFindOpenBCIBoard = function () {
  *  to determine if we are using firmware version 2.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.usingVersionTwoFirmware = function () {
+Cyton.prototype.usingVersionTwoFirmware = function() {
   if (this.options.simulate) {
     return this.options.simulatorFirmwareVersion === k.OBCIFirmwareV2;
   } else {
@@ -659,7 +707,7 @@ Cyton.prototype.usingVersionTwoFirmware = function () {
  *  to determine if we are using firmware version 2.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.usingAtLeastVersionTwoFirmware = function () {
+Cyton.prototype.usingAtLeastVersionTwoFirmware = function() {
   return this.usingVersionTwoFirmware() || this.usingVersionThreeFirmware();
 };
 
@@ -671,7 +719,7 @@ Cyton.prototype.usingAtLeastVersionTwoFirmware = function () {
  *  to determine if we are using firmware version 2.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.usingVersionThreeFirmware = function () {
+Cyton.prototype.usingVersionThreeFirmware = function() {
   if (this.options.simulate) {
     return this.options.simulatorFirmwareVersion === k.OBCIFirmwareV3;
   } else {
@@ -690,25 +738,40 @@ Cyton.prototype.usingVersionThreeFirmware = function () {
  * @returns {Promise} - Resolves with the new channel number, rejects with err.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioChannelSet = function (channelNumber) {
+Cyton.prototype.radioChannelSet = function(channelNumber) {
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error('Don\'t query for the radio while streaming'));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
-    if (channelNumber === undefined || channelNumber === null) return reject(Error('Must input a new channel number to switch too!'));
-    if (!k.isNumber(channelNumber)) return reject(Error('Must input type Number'));
-    if (channelNumber > k.OBCIRadioChannelMax) return reject(Error(`New channel number must be less than ${k.OBCIRadioChannelMax}`));
-    if (channelNumber < k.OBCIRadioChannelMin) return reject(Error(`New channel number must be greater than ${k.OBCIRadioChannelMin}`));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't query for the radio while streaming"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
+    if (channelNumber === undefined || channelNumber === null)
+      return reject(Error("Must input a new channel number to switch too!"));
+    if (!k.isNumber(channelNumber))
+      return reject(Error("Must input type Number"));
+    if (channelNumber > k.OBCIRadioChannelMax)
+      return reject(
+        Error(`New channel number must be less than ${k.OBCIRadioChannelMax}`)
+      );
+    if (channelNumber < k.OBCIRadioChannelMin)
+      return reject(
+        Error(
+          `New channel number must be greater than ${k.OBCIRadioChannelMin}`
+        )
+      );
 
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is using firmware v2'));
+      reject(Error("Please make sure your dongle is using firmware v2"));
     }, 1000);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       if (this.options.verbose) console.log(data.toString());
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
@@ -724,7 +787,9 @@ Cyton.prototype.radioChannelSet = function (channelNumber) {
     this.curParsingMode = k.OBCIParsingEOT;
 
     // Send the radio channel query command
-    this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdChannelSet, channelNumber])).catch(reject);
+    this._writeAndDrain(
+      Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdChannelSet, channelNumber])
+    ).catch(reject);
   });
 };
 
@@ -741,24 +806,38 @@ Cyton.prototype.radioChannelSet = function (channelNumber) {
  * @returns {Promise} - Resolves with the new channel number, rejects with err.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioChannelSetHostOverride = function (channelNumber) {
+Cyton.prototype.radioChannelSetHostOverride = function(channelNumber) {
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error("Don't query for the radio while streaming"));
-    if (channelNumber === undefined || channelNumber === null) return reject(Error('Must input a new channel number to switch too!'));
-    if (!k.isNumber(channelNumber)) return reject(Error('Must input type Number'));
-    if (channelNumber > k.OBCIRadioChannelMax) return reject(Error(`New channel number must be less than ${k.OBCIRadioChannelMax}`));
-    if (channelNumber < k.OBCIRadioChannelMin) return reject(Error(`New channel number must be greater than ${k.OBCIRadioChannelMin}`));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't query for the radio while streaming"));
+    if (channelNumber === undefined || channelNumber === null)
+      return reject(Error("Must input a new channel number to switch too!"));
+    if (!k.isNumber(channelNumber))
+      return reject(Error("Must input type Number"));
+    if (channelNumber > k.OBCIRadioChannelMax)
+      return reject(
+        Error(`New channel number must be less than ${k.OBCIRadioChannelMax}`)
+      );
+    if (channelNumber < k.OBCIRadioChannelMin)
+      return reject(
+        Error(
+          `New channel number must be greater than ${k.OBCIRadioChannelMin}`
+        )
+      );
 
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is using firmware v2'));
+      reject(Error("Please make sure your dongle is using firmware v2"));
     }, 1000);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       if (this.options.verbose) console.log(`${data.toString()}`);
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
@@ -774,7 +853,13 @@ Cyton.prototype.radioChannelSetHostOverride = function (channelNumber) {
     this.curParsingMode = k.OBCIParsingEOT;
 
     // Send the radio channel query command
-    this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdChannelSetOverride, channelNumber])).catch(reject);
+    this._writeAndDrain(
+      Buffer.from([
+        k.OBCIRadioKey,
+        k.OBCIRadioCmdChannelSetOverride,
+        channelNumber
+      ])
+    ).catch(reject);
   });
 };
 
@@ -790,23 +875,32 @@ Cyton.prototype.radioChannelSetHostOverride = function (channelNumber) {
  *      the condition that there system is experiencing board communications failure.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioChannelGet = function () {
+Cyton.prototype.radioChannelGet = function() {
   // The function to run on timeout
   let badCommsTimeout;
 
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error("Don't query for the radio while streaming"));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't query for the radio while streaming"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
 
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is plugged in and using firmware v2'));
+      reject(
+        Error(
+          "Please make sure your dongle is plugged in and using firmware v2"
+        )
+      );
     }, 500);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       if (this.options.verbose) console.log(data.toString());
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
@@ -824,7 +918,9 @@ Cyton.prototype.radioChannelGet = function () {
     this.curParsingMode = k.OBCIParsingEOT;
 
     // Send the radio channel query command
-    this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdChannelGet])).catch(reject);
+    this._writeAndDrain(
+      Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdChannelGet])
+    ).catch(reject);
   });
 };
 
@@ -840,20 +936,29 @@ Cyton.prototype.radioChannelGet = function () {
  * @returns {Promise} - Resolves with the poll time, rejects with an error message.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioPollTimeGet = function () {
+Cyton.prototype.radioPollTimeGet = function() {
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error("Don't query for the poll time while streaming"));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't query for the poll time while streaming"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is plugged in and using firmware v2'));
+      reject(
+        Error(
+          "Please make sure your dongle is plugged in and using firmware v2"
+        )
+      );
     }, 1000);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       if (this.options.verbose) console.log(data.toString());
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
@@ -870,7 +975,9 @@ Cyton.prototype.radioPollTimeGet = function () {
     this.curParsingMode = k.OBCIParsingEOT;
 
     // Send the radio channel query command
-    this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdPollTimeGet])).catch(reject);
+    this._writeAndDrain(
+      Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdPollTimeGet])
+    ).catch(reject);
   });
 };
 
@@ -887,25 +994,41 @@ Cyton.prototype.radioPollTimeGet = function () {
  * @returns {Promise} - Resolves with new poll time, rejects with error message.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioPollTimeSet = function (pollTime) {
+Cyton.prototype.radioPollTimeSet = function(pollTime) {
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error("Don't change the poll time while streaming"));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
-    if (pollTime === undefined || pollTime === null) return reject(Error('Must input a new poll time to switch too!'));
-    if (!k.isNumber(pollTime)) return reject(Error('Must input type Number'));
-    if (pollTime > k.OBCIRadioPollTimeMax) return reject(Error(`New polltime must be less than ${k.OBCIRadioPollTimeMax}`));
-    if (pollTime < k.OBCIRadioPollTimeMin) return reject(Error(`New polltime must be greater than ${k.OBCIRadioPollTimeMin}`));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't change the poll time while streaming"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
+    if (pollTime === undefined || pollTime === null)
+      return reject(Error("Must input a new poll time to switch too!"));
+    if (!k.isNumber(pollTime)) return reject(Error("Must input type Number"));
+    if (pollTime > k.OBCIRadioPollTimeMax)
+      return reject(
+        Error(`New polltime must be less than ${k.OBCIRadioPollTimeMax}`)
+      );
+    if (pollTime < k.OBCIRadioPollTimeMin)
+      return reject(
+        Error(`New polltime must be greater than ${k.OBCIRadioPollTimeMin}`)
+      );
 
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is plugged in and using firmware v2'));
+      reject(
+        Error(
+          "Please make sure your dongle is plugged in and using firmware v2"
+        )
+      );
     }, 1000);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       if (this.options.verbose) console.log(data.toString());
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
@@ -921,7 +1044,9 @@ Cyton.prototype.radioPollTimeSet = function (pollTime) {
     this.curParsingMode = k.OBCIParsingEOT;
 
     // Send the radio channel query command
-    this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdPollTimeSet, pollTime])).catch(reject);
+    this._writeAndDrain(
+      Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdPollTimeSet, pollTime])
+    ).catch(reject);
   });
 };
 
@@ -941,26 +1066,35 @@ Cyton.prototype.radioPollTimeSet = function (pollTime) {
  * @returns {Promise} - Resolves a {Number} that is the new baud rate, rejects on error.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioBaudRateSet = function (speed) {
+Cyton.prototype.radioBaudRateSet = function(speed) {
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error("Don't change the baud rate while streaming"));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
-    if (!k.isString(speed)) return reject(Error('Must input type String'));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't change the baud rate while streaming"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
+    if (!k.isString(speed)) return reject(Error("Must input type String"));
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is plugged in and using firmware v2'));
+      reject(
+        Error(
+          "Please make sure your dongle is plugged in and using firmware v2"
+        )
+      );
     }, 1000);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       if (this.options.verbose) console.log(data.toString());
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
       badCommsTimeout = null;
-      let eotBuf = Buffer.from('$$$');
+      let eotBuf = Buffer.from("$$$");
       let newBaudRateBuf;
       for (let i = data.length; i > 3; i--) {
         if (bufferEqual(data.slice(i - 3, i), eotBuf)) {
@@ -969,11 +1103,14 @@ Cyton.prototype.radioBaudRateSet = function (speed) {
         }
       }
       let newBaudRateNum = Number(newBaudRateBuf.toString());
-      if (newBaudRateNum !== k.OBCIRadioBaudRateDefault && newBaudRateNum !== k.OBCIRadioBaudRateFast) {
-        return reject(Error('Error parse mismatch, restart your system!'));
+      if (
+        newBaudRateNum !== k.OBCIRadioBaudRateDefault &&
+        newBaudRateNum !== k.OBCIRadioBaudRateFast
+      ) {
+        return reject(Error("Error parse mismatch, restart your system!"));
       }
       if (!this.isConnected()) {
-        reject(Error('Lost connection to device during baud set'));
+        reject(Error("Lost connection to device during baud set"));
       } else if (obciUtils.isSuccessInBuffer(data)) {
         // Change the sample rate here
         if (this.options.simulate === false) {
@@ -993,9 +1130,13 @@ Cyton.prototype.radioBaudRateSet = function (speed) {
 
     // Send the radio channel query command
     if (speed === k.OBCIRadioBaudRateFastStr) {
-      this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdBaudRateSetFast])).catch(reject);
+      this._writeAndDrain(
+        Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdBaudRateSetFast])
+      ).catch(reject);
     } else {
-      this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdBaudRateSetDefault])).catch(reject);
+      this._writeAndDrain(
+        Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdBaudRateSetDefault])
+      ).catch(reject);
     }
   });
 };
@@ -1012,21 +1153,30 @@ Cyton.prototype.radioBaudRateSet = function (speed) {
  * @returns {Promise} - Resolves true if both radios are powered and on the same channel; false otherwise.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.radioSystemStatusGet = function () {
+Cyton.prototype.radioSystemStatusGet = function() {
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to Dongle. Pro tip: Call .connect()'));
-    if (this.isStreaming()) return reject(Error("Don't check the radio status while streaming"));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
+    if (!this.isConnected())
+      return reject(
+        Error("Must be connected to Dongle. Pro tip: Call .connect()")
+      );
+    if (this.isStreaming())
+      return reject(Error("Don't check the radio status while streaming"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
 
     // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
     //  important if the module was connected, not streaming and using the old firmware
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your dongle is plugged in and using firmware v2'));
+      reject(
+        Error(
+          "Please make sure your dongle is plugged in and using firmware v2"
+        )
+      );
     }, 1000);
 
     // Subscribe to the EOT event
-    this.once('eot', data => {
+    this.once("eot", data => {
       // Remove the timeout!
       clearTimeout(badCommsTimeout);
       badCommsTimeout = null;
@@ -1043,7 +1193,9 @@ Cyton.prototype.radioSystemStatusGet = function () {
     this.curParsingMode = k.OBCIParsingEOT;
 
     // Send the radio channel query command
-    this._writeAndDrain(Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdSystemStatus])).catch(reject);
+    this._writeAndDrain(
+      Buffer.from([k.OBCIRadioKey, k.OBCIRadioCmdSystemStatus])
+    ).catch(reject);
   });
 };
 
@@ -1055,19 +1207,19 @@ Cyton.prototype.radioSystemStatusGet = function () {
  * @author Andy Heusser (@andyh616)
  * @returns {Promise} - On fulfill will contain an array of Serial ports to use.
  */
-Cyton.prototype.listPorts = function () {
+Cyton.prototype.listPorts = function() {
   return new Promise((resolve, reject) => {
     SerialPort.list((err, ports) => {
       if (err) reject(err);
       else {
         ports.push({
           comName: k.OBCISimulatorPortName,
-          manufacturer: '',
-          serialNumber: '',
-          pnpId: '',
-          locationId: '',
-          vendorId: '',
-          productId: ''
+          manufacturer: "",
+          serialNumber: "",
+          pnpId: "",
+          locationId: "",
+          vendorId: "",
+          productId: ""
         });
         resolve(ports);
       }
@@ -1079,15 +1231,17 @@ Cyton.prototype.listPorts = function () {
  * Get the board type.
  * @return boardType: string
  */
-Cyton.prototype.getBoardType = function () {
-  return k.boardTypeForNumberOfChannels(this._rawDataPacketToSample.channelSettings.length);
+Cyton.prototype.getBoardType = function() {
+  return k.boardTypeForNumberOfChannels(
+    this._rawDataPacketToSample.channelSettings.length
+  );
 };
 
 /**
  * Get the core info object.
  * @return {{firmware: string, missedPackets: number}}
  */
-Cyton.prototype.getInfo = function () {
+Cyton.prototype.getInfo = function() {
   return this.info;
 };
 
@@ -1096,17 +1250,25 @@ Cyton.prototype.getInfo = function () {
  * @param boardType {String}
  *  `default` or `daisy`. Defaults to `default`.
  */
-Cyton.prototype.overrideInfoForBoardType = function (boardType) {
+Cyton.prototype.overrideInfoForBoardType = function(boardType) {
   switch (boardType) {
     case k.OBCIBoardDaisy:
-      this._rawDataPacketToSample.channelSettings = k.channelSettingsArrayInit(k.OBCINumberOfChannelsDaisy);
-      this.impedanceArray = obciUtils.impedanceArray(k.OBCINumberOfChannelsDaisy);
+      this._rawDataPacketToSample.channelSettings = k.channelSettingsArrayInit(
+        k.OBCINumberOfChannelsDaisy
+      );
+      this.impedanceArray = obciUtils.impedanceArray(
+        k.OBCINumberOfChannelsDaisy
+      );
       break;
     case k.OBCIBoardCyton:
     case k.OBCIBoardDefault:
     default:
-      this._rawDataPacketToSample.channelSettings = k.channelSettingsArrayInit(k.OBCINumberOfChannelsCyton);
-      this.impedanceArray = obciUtils.impedanceArray(k.OBCINumberOfChannelsCyton);
+      this._rawDataPacketToSample.channelSettings = k.channelSettingsArrayInit(
+        k.OBCINumberOfChannelsCyton
+      );
+      this.impedanceArray = obciUtils.impedanceArray(
+        k.OBCINumberOfChannelsCyton
+      );
       break;
   }
 };
@@ -1117,53 +1279,52 @@ Cyton.prototype.overrideInfoForBoardType = function (boardType) {
  *  Either `default` or `daisy`
  * @return {Promise}
  */
-Cyton.prototype.hardSetBoardType = function (boardType) {
-  if (this.isStreaming()) return Promise.reject(Error('Must not be streaming!'));
+Cyton.prototype.hardSetBoardType = function(boardType) {
+  if (this.isStreaming())
+    return Promise.reject(Error("Must not be streaming!"));
   return new Promise((resolve, reject) => {
-    const eotFunc = (data) => {
+    const eotFunc = data => {
       switch (data.slice(0, data.length - k.OBCIParseEOT.length).toString()) {
         case k.OBCIChannelMaxNumber8SuccessDaisyRemoved:
           this.overrideInfoForBoardType(k.OBCIBoardCyton);
-          resolve('daisy removed');
+          resolve("daisy removed");
           break;
         case k.OBCIChannelMaxNumber16DaisyAlreadyAttached:
           this.overrideInfoForBoardType(k.OBCIBoardDaisy);
-          resolve('daisy already attached');
+          resolve("daisy already attached");
           break;
         case k.OBCIChannelMaxNumber16DaisyAttached:
           this.overrideInfoForBoardType(k.OBCIBoardDaisy);
-          resolve('daisy attached');
+          resolve("daisy attached");
           break;
         case k.OBCIChannelMaxNumber16NoDaisyAttached:
           this.overrideInfoForBoardType(k.OBCIBoardCyton);
-          reject(Error('unable to attach daisy'));
+          reject(Error("unable to attach daisy"));
           break;
         case k.OBCIChannelMaxNumber8NoDaisyToRemove:
         default:
           this.overrideInfoForBoardType(k.OBCIBoardCyton);
-          resolve('no daisy to remove');
+          resolve("no daisy to remove");
           break;
       }
     };
     if (boardType === k.OBCIBoardCyton || boardType === k.OBCIBoardDefault) {
       this.curParsingMode = k.OBCIParsingEOT;
-      if (this.options.verbose) console.log('Attempting to hardset board type');
+      if (this.options.verbose) console.log("Attempting to hardset board type");
       this.once(k.OBCIEmitterEot, eotFunc);
-      this.write(k.OBCIChannelMaxNumber8)
-        .catch((err) => {
-          this.removeListener(k.OBCIEmitterEot, eotFunc);
-          reject(err);
-        });
+      this.write(k.OBCIChannelMaxNumber8).catch(err => {
+        this.removeListener(k.OBCIEmitterEot, eotFunc);
+        reject(err);
+      });
     } else if (boardType === k.OBCIBoardDaisy) {
       this.curParsingMode = k.OBCIParsingEOT;
       this.once(k.OBCIEmitterEot, eotFunc);
-      this.write(k.OBCIChannelMaxNumber16)
-        .catch((err) => {
-          this.removeListener(k.OBCIEmitterEot, eotFunc);
-          reject(err);
-        });
+      this.write(k.OBCIChannelMaxNumber16).catch(err => {
+        this.removeListener(k.OBCIEmitterEot, eotFunc);
+        reject(err);
+      });
     } else {
-      reject(Error('invalid board type'));
+      reject(Error("invalid board type"));
     }
   });
 };
@@ -1175,7 +1336,7 @@ Cyton.prototype.hardSetBoardType = function (boardType) {
  *           streaming.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.softReset = function () {
+Cyton.prototype.softReset = function() {
   this.curParsingMode = k.OBCIParsingReset;
   return this.write(k.OBCIMiscSoftReset);
 };
@@ -1186,13 +1347,13 @@ Cyton.prototype.softReset = function () {
  * @returns {Promise.<T>|*} Resolved once synced, rejects on error or 2 second timeout
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.syncRegisterSettings = function () {
+Cyton.prototype.syncRegisterSettings = function() {
   // Set a timeout. Since poll times can be max of 255 seconds, we should set that as our timeout. This is
   //  important if the module was connected, not streaming and using the old firmware
   let badCommsTimeout;
   return new Promise((resolve, reject) => {
     badCommsTimeout = setTimeout(() => {
-      reject(Error('Please make sure your radio system is up'));
+      reject(Error("Please make sure your radio system is up"));
     }, 2500);
     // Subscribe to the EOT event
     this.once(k.OBCIEmitterEot, data => {
@@ -1210,11 +1371,10 @@ Cyton.prototype.syncRegisterSettings = function () {
     });
     this.curParsingMode = k.OBCIParsingEOT;
 
-    this.write(k.OBCIMiscQueryRegisterSettings)
-      .catch((err) => {
-        clearTimeout(badCommsTimeout);
-        reject(err);
-      });
+    this.write(k.OBCIMiscQueryRegisterSettings).catch(err => {
+      clearTimeout(badCommsTimeout);
+      reject(err);
+    });
   });
 };
 
@@ -1224,8 +1384,8 @@ Cyton.prototype.syncRegisterSettings = function () {
  * @returns {Promise.<T>}
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.channelOff = function (channelNumber) {
-  return k.commandChannelOff(channelNumber).then((charCommand) => {
+Cyton.prototype.channelOff = function(channelNumber) {
+  return k.commandChannelOff(channelNumber).then(charCommand => {
     // console.log('sent command to turn channel ' + channelNumber + ' by sending command ' + charCommand)
     return this.write(charCommand);
   });
@@ -1237,8 +1397,8 @@ Cyton.prototype.channelOff = function (channelNumber) {
  * @returns {Promise.<T>|*}
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.channelOn = function (channelNumber) {
-  return k.commandChannelOn(channelNumber).then((charCommand) => {
+Cyton.prototype.channelOn = function(channelNumber) {
+  return k.commandChannelOn(channelNumber).then(charCommand => {
     // console.log('sent command to turn channel ' + channelNumber + ' by sending command ' + charCommand)
     return this.write(charCommand);
   });
@@ -1267,20 +1427,38 @@ Cyton.prototype.channelOn = function (channelNumber) {
  * @returns {Promise} resolves if sent, rejects on bad input or no board
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.channelSet = function (channelNumber, powerDown, gain, inputType, bias, srb2, srb1) {
+Cyton.prototype.channelSet = function(
+  channelNumber,
+  powerDown,
+  gain,
+  inputType,
+  bias,
+  srb2,
+  srb1
+) {
   let arrayOfCommands = [];
   return new Promise((resolve, reject) => {
-    k.getChannelSetter(channelNumber, powerDown, gain, inputType, bias, srb2, srb1)
-      .then((val) => {
+    k.getChannelSetter(
+      channelNumber,
+      powerDown,
+      gain,
+      inputType,
+      bias,
+      srb2,
+      srb1
+    )
+      .then(val => {
         arrayOfCommands = val.commandArray;
-        this._rawDataPacketToSample.channelSettings[channelNumber - 1] = val.newChannelSettingsObject;
+        this._rawDataPacketToSample.channelSettings[channelNumber - 1] =
+          val.newChannelSettingsObject;
         if (this.usingAtLeastVersionTwoFirmware()) {
-          const buf = Buffer.from(arrayOfCommands.join(''));
+          const buf = Buffer.from(arrayOfCommands.join(""));
           return this._writeAndDrain(buf);
         } else {
           return this.write(arrayOfCommands);
         }
-      }).then(resolve, reject);
+      })
+      .then(resolve, reject);
   });
 };
 
@@ -1304,7 +1482,7 @@ Cyton.prototype.channelSet = function (channelNumber, powerDown, gain, inputType
  * @returns {Promise}
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.testSignal = function (signal) {
+Cyton.prototype.testSignal = function(signal) {
   return new Promise((resolve, reject) => {
     k.getTestSignalCommand(signal)
       .then(command => {
@@ -1323,17 +1501,22 @@ Cyton.prototype.testSignal = function (signal) {
  * @returns {Promise} resolves if sent, rejects on bad input or no board
  * @author AJ Keller (@aj-ptw)
  */
-Cyton.prototype.impedanceSet = function (channelNumber, pInputApplied, nInputApplied) {
+Cyton.prototype.impedanceSet = function(
+  channelNumber,
+  pInputApplied,
+  nInputApplied
+) {
   return new Promise((resolve, reject) => {
     k.getImpedanceSetter(channelNumber, pInputApplied, nInputApplied)
-      .then((val) => {
+      .then(val => {
         if (this.usingAtLeastVersionTwoFirmware()) {
-          const buf = Buffer.from(val.join(''));
+          const buf = Buffer.from(val.join(""));
           return this._writeAndDrain(buf);
         } else {
           return this.write(val);
         }
-      }).then(resolve, reject);
+      })
+      .then(resolve, reject);
   });
 };
 
@@ -1342,10 +1525,12 @@ Cyton.prototype.impedanceSet = function (channelNumber, pInputApplied, nInputApp
  * @returns {Promise} - Fulfills when all the commands are sent to the internal write buffer
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestContinuousStart = function () {
+Cyton.prototype.impedanceTestContinuousStart = function() {
   return new Promise((resolve, reject) => {
-    if (this.impedanceTest.active) return reject(Error('Error: test already active'));
-    if (this.impedanceTest.continuousMode) return reject(Error('Error: Already in continuous impedance test mode!'));
+    if (this.impedanceTest.active)
+      return reject(Error("Error: test already active"));
+    if (this.impedanceTest.continuousMode)
+      return reject(Error("Error: Already in continuous impedance test mode!"));
 
     this.impedanceTest.active = true;
     this.impedanceTest.continuousMode = true;
@@ -1354,9 +1539,9 @@ Cyton.prototype.impedanceTestContinuousStart = function () {
     for (let i = 0; i < this.numberOfChannels(); i++) {
       chain = chain
         .then(() => k.getImpedanceSetter(i + 1, false, true))
-        .then((commandsArray) => {
+        .then(commandsArray => {
           if (this.usingAtLeastVersionTwoFirmware()) {
-            const buf = Buffer.from(commandsArray.join(''));
+            const buf = Buffer.from(commandsArray.join(""));
             return this._writeAndDrain(buf);
           } else {
             return this.write(commandsArray);
@@ -1372,10 +1557,12 @@ Cyton.prototype.impedanceTestContinuousStart = function () {
  * @returns {Promise} - Fulfills when all the commands are sent to the internal write buffer
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestContinuousStop = function () {
+Cyton.prototype.impedanceTestContinuousStop = function() {
   return new Promise((resolve, reject) => {
-    if (!this.impedanceTest.active) return reject(Error('Error: no test active'));
-    if (!this.impedanceTest.continuousMode) return reject(Error('Error: Not in continuous impedance test mode!'));
+    if (!this.impedanceTest.active)
+      return reject(Error("Error: no test active"));
+    if (!this.impedanceTest.continuousMode)
+      return reject(Error("Error: Not in continuous impedance test mode!"));
 
     this.impedanceTest.active = false;
     this.impedanceTest.continuousMode = false;
@@ -1384,9 +1571,9 @@ Cyton.prototype.impedanceTestContinuousStop = function () {
     for (let i = 0; i < this.numberOfChannels(); i++) {
       chain = chain
         .then(() => k.getImpedanceSetter(i + 1, false, false))
-        .then((commandsArray) => {
+        .then(commandsArray => {
           if (this.usingAtLeastVersionTwoFirmware()) {
-            const buf = Buffer.from(commandsArray.join(''));
+            const buf = Buffer.from(commandsArray.join(""));
             return this._writeAndDrain(buf);
           } else {
             return this.write(commandsArray);
@@ -1403,7 +1590,7 @@ Cyton.prototype.impedanceTestContinuousStop = function () {
  * @returns {Promise} - Resovles when complete testing all the channels.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestAllChannels = function () {
+Cyton.prototype.impedanceTestAllChannels = function() {
   let upperLimit = k.OBCINumberOfChannelsCyton;
 
   /* istanbul ignore if */
@@ -1411,22 +1598,25 @@ Cyton.prototype.impedanceTestAllChannels = function () {
     upperLimit = k.OBCINumberOfChannelsDaisy;
   }
 
-  if (!this.isStreaming()) return Promise.reject(Error('Must be streaming!'));
+  if (!this.isStreaming()) return Promise.reject(Error("Must be streaming!"));
 
   // Recursive function call
-  let completeChannelImpedanceTest = (channelNumber) => {
+  let completeChannelImpedanceTest = channelNumber => {
     return new Promise((resolve, reject) => {
-      if (channelNumber > upperLimit) { // Base case!
-        this.emit('impedanceArray', this.impedanceArray);
+      if (channelNumber > upperLimit) {
+        // Base case!
+        this.emit("impedanceArray", this.impedanceArray);
         this.impedanceTest.onChannel = 0;
         resolve();
       } else {
-        if (this.options.verbose) console.log('\n\nImpedance Test for channel ' + channelNumber);
+        if (this.options.verbose)
+          console.log("\n\nImpedance Test for channel " + channelNumber);
         this.impedanceTestChannel(channelNumber)
           .then(() => {
             resolve(completeChannelImpedanceTest(channelNumber + 1));
-          /* istanbul ignore next */
-          }).catch(err => reject(err));
+            /* istanbul ignore next */
+          })
+          .catch(err => reject(err));
       }
     });
   };
@@ -1447,37 +1637,66 @@ Cyton.prototype.impedanceTestAllChannels = function () {
  * @returns {Promise} - Fulfilled with a loaded impedance object.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestChannels = function (arrayOfChannels) {
-  if (!Array.isArray(arrayOfChannels)) return Promise.reject(Error('Input must be array of channels... See Docs!'));
-  if (!this.isStreaming()) return Promise.reject(Error('Must be streaming!'));
+Cyton.prototype.impedanceTestChannels = function(arrayOfChannels) {
+  if (!Array.isArray(arrayOfChannels))
+    return Promise.reject(
+      Error("Input must be array of channels... See Docs!")
+    );
+  if (!this.isStreaming()) return Promise.reject(Error("Must be streaming!"));
   // Check proper length of array
-  if (arrayOfChannels.length !== this.numberOfChannels()) return Promise.reject(Error('Array length mismatch, should have ' + this.numberOfChannels() + ' but array has length ' + arrayOfChannels.length));
+  if (arrayOfChannels.length !== this.numberOfChannels())
+    return Promise.reject(
+      Error(
+        "Array length mismatch, should have " +
+          this.numberOfChannels() +
+          " but array has length " +
+          arrayOfChannels.length
+      )
+    );
 
   // Recursive function call
-  let completeChannelImpedanceTest = (channelNumber) => {
+  let completeChannelImpedanceTest = channelNumber => {
     return new Promise((resolve, reject) => {
-      if (channelNumber > arrayOfChannels.length) { // Base case!
-        this.emit('impedanceArray', this.impedanceArray);
+      if (channelNumber > arrayOfChannels.length) {
+        // Base case!
+        this.emit("impedanceArray", this.impedanceArray);
         this.impedanceTest.onChannel = 0;
         resolve();
       } else {
-        if (this.options.verbose) console.log('\n\nImpedance Test for channel ' + channelNumber);
+        if (this.options.verbose)
+          console.log("\n\nImpedance Test for channel " + channelNumber);
 
         let testCommand = arrayOfChannels[channelNumber - 1];
 
-        if (testCommand === 'p' || testCommand === 'P') {
-          this.impedanceTestChannelInputP(channelNumber).then(() => {
-            completeChannelImpedanceTest(channelNumber + 1).then(resolve, reject);
-          }).catch(err => reject(err));
-        } else if (testCommand === 'n' || testCommand === 'N') {
-          this.impedanceTestChannelInputN(channelNumber).then(() => {
-            completeChannelImpedanceTest(channelNumber + 1).then(resolve, reject);
-          }).catch(err => reject(err));
-        } else if (testCommand === 'b' || testCommand === 'B') {
-          this.impedanceTestChannel(channelNumber).then(() => {
-            completeChannelImpedanceTest(channelNumber + 1).then(resolve, reject);
-          }).catch(err => reject(err));
-        } else { // skip ('-') condition
+        if (testCommand === "p" || testCommand === "P") {
+          this.impedanceTestChannelInputP(channelNumber)
+            .then(() => {
+              completeChannelImpedanceTest(channelNumber + 1).then(
+                resolve,
+                reject
+              );
+            })
+            .catch(err => reject(err));
+        } else if (testCommand === "n" || testCommand === "N") {
+          this.impedanceTestChannelInputN(channelNumber)
+            .then(() => {
+              completeChannelImpedanceTest(channelNumber + 1).then(
+                resolve,
+                reject
+              );
+            })
+            .catch(err => reject(err));
+        } else if (testCommand === "b" || testCommand === "B") {
+          this.impedanceTestChannel(channelNumber)
+            .then(() => {
+              completeChannelImpedanceTest(channelNumber + 1).then(
+                resolve,
+                reject
+              );
+            })
+            .catch(err => reject(err));
+        } else {
+          // skip ('-') condition
           completeChannelImpedanceTest(channelNumber + 1).then(resolve, reject);
         }
       }
@@ -1492,8 +1711,10 @@ Cyton.prototype.impedanceTestChannels = function (arrayOfChannels) {
  * @returns {Promise} - Fulfilled with a single channel impedance object.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestChannel = function (channelNumber) {
-  this.impedanceArray[channelNumber - 1] = obciUtils.impedanceObject(channelNumber);
+Cyton.prototype.impedanceTestChannel = function(channelNumber) {
+  this.impedanceArray[channelNumber - 1] = obciUtils.impedanceObject(
+    channelNumber
+  );
   return new Promise((resolve, reject) => {
     this._impedanceTestSetChannel(channelNumber, true, false) // Sends command for P input on channel number.
       .then(channelNumber => {
@@ -1511,7 +1732,7 @@ Cyton.prototype.impedanceTestChannel = function (channelNumber) {
       .then(channelNumber => {
         return this._impedanceTestFinalizeChannel(channelNumber, true, true); // Finalize the impedances.
       })
-      .then((channelNumber) => resolve(this.impedanceArray[channelNumber - 1]))
+      .then(channelNumber => resolve(this.impedanceArray[channelNumber - 1]))
       .catch(err => reject(err));
   });
 };
@@ -1522,8 +1743,10 @@ Cyton.prototype.impedanceTestChannel = function (channelNumber) {
  * @returns {Promise} - Fulfilled with a single channel impedance object.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestChannelInputP = function (channelNumber) {
-  this.impedanceArray[channelNumber - 1] = obciUtils.impedanceObject(channelNumber);
+Cyton.prototype.impedanceTestChannelInputP = function(channelNumber) {
+  this.impedanceArray[channelNumber - 1] = obciUtils.impedanceObject(
+    channelNumber
+  );
   return new Promise((resolve, reject) => {
     this._impedanceTestSetChannel(channelNumber, true, false) // Sends command for P input on channel number.
       .then(channelNumber => {
@@ -1535,7 +1758,7 @@ Cyton.prototype.impedanceTestChannelInputP = function (channelNumber) {
       .then(channelNumber => {
         return this._impedanceTestFinalizeChannel(channelNumber, true, false); // Finalize the impedances.
       })
-      .then((channelNumber) => resolve(this.impedanceArray[channelNumber - 1]))
+      .then(channelNumber => resolve(this.impedanceArray[channelNumber - 1]))
       .catch(err => reject(err));
   });
 };
@@ -1546,8 +1769,10 @@ Cyton.prototype.impedanceTestChannelInputP = function (channelNumber) {
  * @returns {Promise} - Fulfilled with a single channel impedance object.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.impedanceTestChannelInputN = function (channelNumber) {
-  this.impedanceArray[channelNumber - 1] = obciUtils.impedanceObject(channelNumber);
+Cyton.prototype.impedanceTestChannelInputN = function(channelNumber) {
+  this.impedanceArray[channelNumber - 1] = obciUtils.impedanceObject(
+    channelNumber
+  );
   return new Promise((resolve, reject) => {
     this._impedanceTestSetChannel(channelNumber, false, true) // Sends command for N input on channel number.
       .then(channelNumber => {
@@ -1559,7 +1784,7 @@ Cyton.prototype.impedanceTestChannelInputN = function (channelNumber) {
       .then(channelNumber => {
         return this._impedanceTestFinalizeChannel(channelNumber, false, true); // Finalize the impedances.
       })
-      .then((channelNumber) => resolve(this.impedanceArray[channelNumber - 1]))
+      .then(channelNumber => resolve(this.impedanceArray[channelNumber - 1]))
       .catch(err => reject(err));
   });
 };
@@ -1574,20 +1799,28 @@ Cyton.prototype.impedanceTestChannelInputN = function (channelNumber) {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._impedanceTestSetChannel = function (channelNumber, pInput, nInput) {
+Cyton.prototype._impedanceTestSetChannel = function(
+  channelNumber,
+  pInput,
+  nInput
+) {
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected'));
+    if (!this.isConnected()) return reject(Error("Must be connected"));
 
     /* istanbul ignore if */
     if (this.options.verbose) {
       if (pInput && !nInput) {
-        console.log('\tSending command to apply test signal to P input.');
+        console.log("\tSending command to apply test signal to P input.");
       } else if (!pInput && nInput) {
-        console.log('\tSending command to apply test signal to N input.');
+        console.log("\tSending command to apply test signal to N input.");
       } else if (pInput && nInput) {
-        console.log('\tSending command to apply test signal to P and N inputs.');
+        console.log(
+          "\tSending command to apply test signal to P and N inputs."
+        );
       } else {
-        console.log('\tSending command to stop applying test signal to both P and N inputs.');
+        console.log(
+          "\tSending command to stop applying test signal to both P and N inputs."
+        );
       }
     }
 
@@ -1597,26 +1830,32 @@ Cyton.prototype._impedanceTestSetChannel = function (channelNumber, pInput, nInp
     } else {
       // this.writeOutDelay = k.OBCIWriteIntervalDelayMSLong
     }
-    if (this.options.verbose) console.log('pInput: ' + pInput + ' nInput: ' + nInput);
+    if (this.options.verbose)
+      console.log("pInput: " + pInput + " nInput: " + nInput);
     // Get impedance settings to send the board
-    k.getImpedanceSetter(channelNumber, pInput, nInput).then((commandsArray) => {
-      if (this.usingAtLeastVersionTwoFirmware()) {
-        const buf = Buffer.from(commandsArray.join(''));
-        return this._writeAndDrain(buf);
-      } else {
-        return this.write(commandsArray);
-      }
-    }).then(() => {
-      /**
-       * If either pInput or nInput are true then we should start calculating impedance. Setting
-       *  this.impedanceTest.active to true here allows us to route every sample for an impedance
-       *  calculation instead of the normal sample output.
-       */
-      if (pInput || nInput) this.impedanceTest.active = true;
-      resolve(channelNumber);
-    }, (err) => {
-      reject(err);
-    });
+    k.getImpedanceSetter(channelNumber, pInput, nInput)
+      .then(commandsArray => {
+        if (this.usingAtLeastVersionTwoFirmware()) {
+          const buf = Buffer.from(commandsArray.join(""));
+          return this._writeAndDrain(buf);
+        } else {
+          return this.write(commandsArray);
+        }
+      })
+      .then(
+        () => {
+          /**
+           * If either pInput or nInput are true then we should start calculating impedance. Setting
+           *  this.impedanceTest.active to true here allows us to route every sample for an impedance
+           *  calculation instead of the normal sample output.
+           */
+          if (pInput || nInput) this.impedanceTest.active = true;
+          resolve(channelNumber);
+        },
+        err => {
+          reject(err);
+        }
+      );
   });
 };
 
@@ -1629,45 +1868,59 @@ Cyton.prototype._impedanceTestSetChannel = function (channelNumber, pInput, nInp
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._impedanceTestCalculateChannel = function (channelNumber, pInput, nInput) {
+Cyton.prototype._impedanceTestCalculateChannel = function(
+  channelNumber,
+  pInput,
+  nInput
+) {
   /* istanbul ignore if */
   if (this.options.verbose) {
     if (pInput && !nInput) {
-      console.log('\tCalculating impedance for P input.');
+      console.log("\tCalculating impedance for P input.");
     } else if (!pInput && nInput) {
-      console.log('\tCalculating impedance for N input.');
+      console.log("\tCalculating impedance for N input.");
     } else if (pInput && nInput) {
-      console.log('\tCalculating impedance for P and N input.');
+      console.log("\tCalculating impedance for P and N input.");
     } else {
-      console.log('\tNot calculating impedance for either P and N input.');
+      console.log("\tNot calculating impedance for either P and N input.");
     }
   }
   return new Promise((resolve, reject) => {
-    if (channelNumber < 1 || channelNumber > this.numberOfChannels()) return reject(Error('Invalid channel number'));
-    if (typeof pInput !== 'boolean') return reject(Error("Invalid Input: 'pInput' must be of type Bool"));
-    if (typeof nInput !== 'boolean') return reject(Error("Invalid Input: 'nInput' must be of type Bool"));
+    if (channelNumber < 1 || channelNumber > this.numberOfChannels())
+      return reject(Error("Invalid channel number"));
+    if (typeof pInput !== "boolean")
+      return reject(Error("Invalid Input: 'pInput' must be of type Bool"));
+    if (typeof nInput !== "boolean")
+      return reject(Error("Invalid Input: 'nInput' must be of type Bool"));
     this.impedanceTest.onChannel = channelNumber;
     this.impedanceTest.sampleNumber = 0; // Reset the sample number
     this.impedanceTest.isTestingPInput = pInput;
     this.impedanceTest.isTestingNInput = nInput;
     // console.log(channelNumber + ' In calculate channel pInput: ' + pInput + ' this.impedanceTest.isTestingPInput: ' + this.impedanceTest.isTestingPInput)
     // console.log(channelNumber + ' In calculate channel nInput: ' + nInput + ' this.impedanceTest.isTestingNInput: ' + this.impedanceTest.isTestingNInput)
-    setTimeout(() => { // Calculate for 250ms
+    setTimeout(() => {
+      // Calculate for 250ms
       this.impedanceTest.onChannel = 0;
       /* istanbul ignore if */
       if (this.options.verbose) {
         if (pInput && !nInput) {
-          console.log('\tDone calculating impedance for P input.');
+          console.log("\tDone calculating impedance for P input.");
         } else if (!pInput && nInput) {
-          console.log('\tDone calculating impedance for N input.');
+          console.log("\tDone calculating impedance for N input.");
         } else if (pInput && nInput) {
-          console.log('\tDone calculating impedance for P and N input.');
+          console.log("\tDone calculating impedance for P and N input.");
         } else {
-          console.log('\tNot calculating impedance for either P and N input.');
+          console.log("\tNot calculating impedance for either P and N input.");
         }
       }
-      if (pInput) this.impedanceArray[channelNumber - 1].P.raw = this.impedanceTest.impedanceForChannel;
-      if (nInput) this.impedanceArray[channelNumber - 1].N.raw = this.impedanceTest.impedanceForChannel;
+      if (pInput)
+        this.impedanceArray[
+          channelNumber - 1
+        ].P.raw = this.impedanceTest.impedanceForChannel;
+      if (nInput)
+        this.impedanceArray[
+          channelNumber - 1
+        ].N.raw = this.impedanceTest.impedanceForChannel;
       resolve(channelNumber);
     }, 400);
   });
@@ -1682,26 +1935,35 @@ Cyton.prototype._impedanceTestCalculateChannel = function (channelNumber, pInput
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._impedanceTestFinalizeChannel = function (channelNumber, pInput, nInput) {
+Cyton.prototype._impedanceTestFinalizeChannel = function(
+  channelNumber,
+  pInput,
+  nInput
+) {
   /* istanbul ignore if */
   if (this.options.verbose) {
     if (pInput && !nInput) {
-      console.log('\tFinalizing impedance for P input.');
+      console.log("\tFinalizing impedance for P input.");
     } else if (!pInput && nInput) {
-      console.log('\tFinalizing impedance for N input.');
+      console.log("\tFinalizing impedance for N input.");
     } else if (pInput && nInput) {
-      console.log('\tFinalizing impedance for P and N input.');
+      console.log("\tFinalizing impedance for P and N input.");
     } else {
-      console.log('\tNot Finalizing impedance for either P and N input.');
+      console.log("\tNot Finalizing impedance for either P and N input.");
     }
   }
   return new Promise((resolve, reject) => {
-    if (channelNumber < 1 || channelNumber > this.numberOfChannels()) return reject(Error('Invalid channel number'));
-    if (typeof pInput !== 'boolean') return reject(Error("Invalid Input: 'pInput' must be of type Bool"));
-    if (typeof nInput !== 'boolean') return reject(Error("Invalid Input: 'nInput' must be of type Bool"));
+    if (channelNumber < 1 || channelNumber > this.numberOfChannels())
+      return reject(Error("Invalid channel number"));
+    if (typeof pInput !== "boolean")
+      return reject(Error("Invalid Input: 'pInput' must be of type Bool"));
+    if (typeof nInput !== "boolean")
+      return reject(Error("Invalid Input: 'nInput' must be of type Bool"));
 
-    if (pInput) obciUtils.impedanceSummarize(this.impedanceArray[channelNumber - 1].P);
-    if (nInput) obciUtils.impedanceSummarize(this.impedanceArray[channelNumber - 1].N);
+    if (pInput)
+      obciUtils.impedanceSummarize(this.impedanceArray[channelNumber - 1].P);
+    if (nInput)
+      obciUtils.impedanceSummarize(this.impedanceArray[channelNumber - 1].N);
 
     setTimeout(() => {
       resolve(channelNumber);
@@ -1718,9 +1980,10 @@ Cyton.prototype._impedanceTestFinalizeChannel = function (channelNumber, pInput,
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.sdStart = function (recordingDuration) {
+Cyton.prototype.sdStart = function(recordingDuration) {
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to the device'));
+    if (!this.isConnected())
+      return reject(Error("Must be connected to the device"));
     k.sdSettingForString(recordingDuration)
       .then(command => {
         // If we are not streaming, then expect a confirmation message back from the board
@@ -1740,9 +2003,10 @@ Cyton.prototype.sdStart = function (recordingDuration) {
  * @returns {Promise} - Resolves when written
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.sdStop = function () {
+Cyton.prototype.sdStop = function() {
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to the device'));
+    if (!this.isConnected())
+      return reject(Error("Must be connected to the device"));
     // If we are not streaming, then expect a confirmation message back from the board
     if (!this.isStreaming()) {
       this.curParsingMode = k.OBCIParsingEOT;
@@ -1758,7 +2022,7 @@ Cyton.prototype.sdStop = function () {
  * Note: This is dependent on if you configured the board correctly on setup options
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.sampleRate = function () {
+Cyton.prototype.sampleRate = function() {
   if (this.options.simulate) {
     return this.options.simulatorSampleRate;
   } else {
@@ -1780,7 +2044,7 @@ Cyton.prototype.sampleRate = function () {
  * Note: This is dependent on if you configured the board correctly on setup options
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.numberOfChannels = function () {
+Cyton.prototype.numberOfChannels = function() {
   return this._rawDataPacketToSample.channelSettings.length;
 };
 
@@ -1792,11 +2056,14 @@ Cyton.prototype.numberOfChannels = function () {
  * @returns {Promise} - Resolves if sent, rejects if not connected or using firmware verison +2.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.syncClocks = function () {
+Cyton.prototype.syncClocks = function() {
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to the device'));
-    if (!this.isStreaming()) return reject(Error('Must be streaming to sync clocks'));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
+    if (!this.isConnected())
+      return reject(Error("Must be connected to the device"));
+    if (!this.isStreaming())
+      return reject(Error("Must be streaming to sync clocks"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
     this.sync.curSyncObj = obciUtils.newSyncObject();
     this.sync.curSyncObj.timeSyncSent = this.time();
     this.curParsingMode = k.OBCIParsingTimeSyncSent;
@@ -1813,27 +2080,29 @@ Cyton.prototype.syncClocks = function () {
  * @returns {Promise} - Resolves if `synced` event is emitted, rejects if not connected or using firmware v2.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.syncClocksFull = function () {
+Cyton.prototype.syncClocksFull = function() {
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Must be connected to the device'));
-    if (!this.isStreaming()) return reject(Error('Must be streaming to sync clocks'));
-    if (!this.usingAtLeastVersionTwoFirmware()) return reject(Error('Must be using greater than firmware version 2'));
+    if (!this.isConnected())
+      return reject(Error("Must be connected to the device"));
+    if (!this.isStreaming())
+      return reject(Error("Must be streaming to sync clocks"));
+    if (!this.usingAtLeastVersionTwoFirmware())
+      return reject(Error("Must be using greater than firmware version 2"));
     let timeout = setTimeout(() => {
-      return reject(Error('syncClocksFull timeout after 500ms with no sync'));
+      return reject(Error("syncClocksFull timeout after 500ms with no sync"));
     }, 500); // Should not take more than 1s to sync up
     this.sync.eventEmitter = syncObj => {
       clearTimeout(timeout);
       return resolve(syncObj);
     };
-    this.once('synced', this.sync.eventEmitter);
+    this.once("synced", this.sync.eventEmitter);
     this.sync.curSyncObj = obciUtils.newSyncObject();
     this.sync.curSyncObj.timeSyncSent = this.time();
     this.curParsingMode = k.OBCIParsingTimeSyncSent;
-    this._writeAndDrain(k.OBCISyncTimeSet)
-      .catch(err => {
-        clearTimeout(timeout);
-        return reject(err);
-      });
+    this._writeAndDrain(k.OBCISyncTimeSet).catch(err => {
+      clearTimeout(timeout);
+      return reject(err);
+    });
   });
 };
 
@@ -1849,17 +2118,14 @@ Cyton.prototype.syncClocksFull = function () {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._processBytes = function (data) {
-  if (this.options.debug) obciDebug.default(this.curParsingMode + '<<', data);
+Cyton.prototype._processBytes = function(data) {
+  if (this.options.debug) obciDebug.default(this.curParsingMode + "<<", data);
 
   // Concat old buffer
   let oldDataBuffer = null;
   if (this.buffer) {
     oldDataBuffer = this.buffer;
-    data = Buffer.concat([
-      Buffer.from(this.buffer),
-      Buffer.from(data)
-    ]);
+    data = Buffer.concat([Buffer.from(this.buffer), Buffer.from(data)]);
   }
 
   switch (this.curParsingMode) {
@@ -1886,7 +2152,7 @@ Cyton.prototype._processBytes = function (data) {
                 this.emit(k.OBCIEmitterReady);
                 this.buffer = obciUtils.stripToEOTBuffer(data);
               })
-              .catch((err) => {
+              .catch(err => {
                 this.emit(k.OBCIEmitterError, err);
               });
           } else {
@@ -1895,8 +2161,15 @@ Cyton.prototype._processBytes = function (data) {
             this.buffer = obciUtils.stripToEOTBuffer(data);
           }
         } else {
-          if (!_.eq(this.getBoardType(), this.options.boardType) && this.options.verbose) {
-            console.log(`Module detected ${this.getBoardType()} board type but you specified ${this.options.boardType}, use 'hardSet' to force the module to correct itself`);
+          if (
+            !_.eq(this.getBoardType(), this.options.boardType) &&
+            this.options.verbose
+          ) {
+            console.log(
+              `Module detected ${this.getBoardType()} board type but you specified ${
+                this.options.boardType
+              }, use 'hardSet' to force the module to correct itself`
+            );
           }
           this.curParsingMode = k.OBCIParsingNormal;
           this.emit(k.OBCIEmitterReady);
@@ -1937,7 +2210,7 @@ Cyton.prototype._processBytes = function (data) {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._processDataBuffer = function (dataBuffer) {
+Cyton.prototype._processDataBuffer = function(dataBuffer) {
   if (_.isNull(dataBuffer) || _.isUndefined(dataBuffer)) return null;
   const output = obciUtils.extractRawDataPackets(dataBuffer);
 
@@ -1948,11 +2221,13 @@ Cyton.prototype._processDataBuffer = function (dataBuffer) {
   for (let i = 0; i < output.rawDataPackets.length; i++) {
     // Emit that buffer
     const rawDataPacket = output.rawDataPackets[i];
-    this.emit('rawDataPacket', rawDataPacket);
+    this.emit("rawDataPacket", rawDataPacket);
     // Submit the packet for processing
     this._processQualifiedPacket(rawDataPacket);
     this._rawDataPacketToSample.rawDataPacket = rawDataPacket;
-    const sample = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample);
+    const sample = obciUtils.transformRawDataPacketToSample(
+      this._rawDataPacketToSample
+    );
     this._finalizeNewSample(sample);
   }
   // _.forEach(output.rawDataPackets, (rawDataPacket) => {
@@ -1975,7 +2250,7 @@ Cyton.prototype._processDataBuffer = function (dataBuffer) {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._processParseBufferForReset = function (dataBuffer) {
+Cyton.prototype._processParseBufferForReset = function(dataBuffer) {
   if (obciUtils.countADSPresent(dataBuffer) === 2) {
     this.overrideInfoForBoardType(k.OBCIBoardDaisy);
   } else {
@@ -1990,7 +2265,7 @@ Cyton.prototype._processParseBufferForReset = function (dataBuffer) {
       major: 1,
       minor: 0,
       patch: 0,
-      raw: 'v1.0.0'
+      raw: "v1.0.0"
     };
     this.writeOutDelay = k.OBCIWriteIntervalDelayMSLong;
   }
@@ -2002,19 +2277,28 @@ Cyton.prototype._processParseBufferForReset = function (dataBuffer) {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._processQualifiedPacket = function (rawDataPacketBuffer) {
+Cyton.prototype._processQualifiedPacket = function(rawDataPacketBuffer) {
   if (!rawDataPacketBuffer) return;
   if (rawDataPacketBuffer.byteLength !== k.OBCIPacketSize) return;
-  let missedPacketArray = obciUtils.droppedPacketCheck(this.previousSampleNumber, rawDataPacketBuffer[k.OBCIPacketPositionSampleNumber]);
+  let missedPacketArray = obciUtils.droppedPacketCheck(
+    this.previousSampleNumber,
+    rawDataPacketBuffer[k.OBCIPacketPositionSampleNumber]
+  );
   if (missedPacketArray) {
     this.emit(k.OBCIEmitterDroppedPacket, missedPacketArray);
   }
-  this.previousSampleNumber = rawDataPacketBuffer[k.OBCIPacketPositionSampleNumber];
-  let packetType = obciUtils.getRawPacketType(rawDataPacketBuffer[k.OBCIPacketPositionStopByte]);
+  this.previousSampleNumber =
+    rawDataPacketBuffer[k.OBCIPacketPositionSampleNumber];
+  let packetType = obciUtils.getRawPacketType(
+    rawDataPacketBuffer[k.OBCIPacketPositionStopByte]
+  );
   switch (packetType) {
     case k.OBCIStreamPacketAccelTimeSyncSet:
     case k.OBCIStreamPacketRawAuxTimeSyncSet:
-      this._processPacketTimeSyncSet(rawDataPacketBuffer, this.timeOfPacketArrival);
+      this._processPacketTimeSyncSet(
+        rawDataPacketBuffer,
+        this.timeOfPacketArrival
+      );
       break;
     default:
       // Don't do anything if the packet is not defined
@@ -2028,20 +2312,27 @@ Cyton.prototype._processQualifiedPacket = function (rawDataPacketBuffer) {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._processImpedanceTest = function (sampleObject) {
+Cyton.prototype._processImpedanceTest = function(sampleObject) {
   let impedanceArray;
   if (this.impedanceTest.continuousMode) {
     // console.log('running in continuous mode...')
     // obciUtils.debugPrettyPrint(sampleObject)
-    impedanceArray = obciUtils.impedanceCalculateArray(sampleObject, this.impedanceTest);
+    impedanceArray = obciUtils.impedanceCalculateArray(
+      sampleObject,
+      this.impedanceTest
+    );
     if (impedanceArray) {
-      this.emit('impedanceArray', impedanceArray);
+      this.emit("impedanceArray", impedanceArray);
     }
   } else if (this.impedanceTest.onChannel !== 0) {
     // Only calculate impedance for one channel
-    impedanceArray = obciUtils.impedanceCalculateArray(sampleObject, this.impedanceTest);
+    impedanceArray = obciUtils.impedanceCalculateArray(
+      sampleObject,
+      this.impedanceTest
+    );
     if (impedanceArray) {
-      this.impedanceTest.impedanceForChannel = impedanceArray[this.impedanceTest.onChannel - 1];
+      this.impedanceTest.impedanceForChannel =
+        impedanceArray[this.impedanceTest.onChannel - 1];
     }
   }
 };
@@ -2054,13 +2345,16 @@ Cyton.prototype._processImpedanceTest = function (sampleObject) {
  * @returns {Object} - A time sync object.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArrival) {
+Cyton.prototype._processPacketTimeSyncSet = function(
+  rawPacket,
+  timeOfPacketArrival
+) {
   /**
    * Helper function for creating a bad sync object
    * @param err {object} - Can be any object
    * @returns {{boardTime, correctedTransmissionTime, error, timeSyncSent, timeSyncSentConfirmation, timeSyncSetPacket, timeRoundTrip, timeTransmission, timeOffset, timeOffsetMaster, valid}|*}
    */
-  let getBadObject = (err) => {
+  let getBadObject = err => {
     let badObject = obciUtils.newSyncObject();
     badObject.timeOffsetMaster = this.sync.timeOffsetMaster;
     // Create an error
@@ -2082,7 +2376,8 @@ Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArr
   } else {
     try {
       this.sync.curSyncObj.timeSyncSetPacket = timeOfPacketArrival;
-      if (this.options.verbose) console.log('Got time set packet from the board');
+      if (this.options.verbose)
+        console.log("Got time set packet from the board");
       let boardTime = obciUtils.getFromTimePacketTime(rawPacket);
       this.sync.curSyncObj.boardTime = boardTime;
       // if (this.options.verbose) {
@@ -2092,8 +2387,13 @@ Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArr
       // }
 
       // Calculate the time between sending the `<` to getting the set packet, call this the round trip length
-      this.sync.curSyncObj.timeRoundTrip = this.sync.curSyncObj.timeSyncSetPacket - this.sync.curSyncObj.timeSyncSent;
-      if (this.options.verbose) console.log(`Round trip time: ${this.sync.curSyncObj.timeRoundTrip} ms`);
+      this.sync.curSyncObj.timeRoundTrip =
+        this.sync.curSyncObj.timeSyncSetPacket -
+        this.sync.curSyncObj.timeSyncSent;
+      if (this.options.verbose)
+        console.log(
+          `Round trip time: ${this.sync.curSyncObj.timeRoundTrip} ms`
+        );
 
       // If the sync sent conf and set packet arrive in different serial flushes
       //  ------------------------------------------
@@ -2106,7 +2406,10 @@ Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArr
       //     t      t confirmation
       //
       // Assume it's good...
-      this.sync.curSyncObj.timeTransmission = this.sync.curSyncObj.timeRoundTrip - (this.sync.curSyncObj.timeSyncSentConfirmation - this.sync.curSyncObj.timeSyncSent);
+      this.sync.curSyncObj.timeTransmission =
+        this.sync.curSyncObj.timeRoundTrip -
+        (this.sync.curSyncObj.timeSyncSentConfirmation -
+          this.sync.curSyncObj.timeSyncSent);
 
       // If the conf and the set packet arrive in the same serial flush we have big problem!
       //  ------------------------------------------
@@ -2117,15 +2420,27 @@ Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArr
       //   e                                   e      e
       //    n                                   n      t packet
       //     t                                   t confirmation
-      if ((this.sync.curSyncObj.timeSyncSetPacket - this.sync.curSyncObj.timeSyncSentConfirmation) < k.OBCITimeSyncThresholdTransFailureMS) {
+      if (
+        this.sync.curSyncObj.timeSyncSetPacket -
+          this.sync.curSyncObj.timeSyncSentConfirmation <
+        k.OBCITimeSyncThresholdTransFailureMS
+      ) {
         // Estimate that 75% of the time between sent and set packet was spent on the packet making its way from board to this point
-        this.sync.curSyncObj.timeTransmission = Math.floor((this.sync.curSyncObj.timeSyncSetPacket - this.sync.curSyncObj.timeSyncSent) * k.OBCITimeSyncMultiplierWithSyncConf);
-        if (this.options.verbose) console.log(`Had to correct transmission time`);
+        this.sync.curSyncObj.timeTransmission = Math.floor(
+          (this.sync.curSyncObj.timeSyncSetPacket -
+            this.sync.curSyncObj.timeSyncSent) *
+            k.OBCITimeSyncMultiplierWithSyncConf
+        );
+        if (this.options.verbose)
+          console.log(`Had to correct transmission time`);
         this.sync.curSyncObj.correctedTransmissionTime = true;
       }
 
       // Calculate the offset #finally
-      this.sync.curSyncObj.timeOffset = this.sync.curSyncObj.timeSyncSetPacket - this.sync.curSyncObj.timeTransmission - boardTime;
+      this.sync.curSyncObj.timeOffset =
+        this.sync.curSyncObj.timeSyncSetPacket -
+        this.sync.curSyncObj.timeTransmission -
+        boardTime;
       if (this.options.verbose) {
         console.log(`Board offset time: ${this.sync.curSyncObj.timeOffset} ms`);
         console.log(`Board time: ${boardTime}`);
@@ -2144,8 +2459,12 @@ Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArr
 
       // Calculate the master time offset that we use averaging to compute
       if (this.sync.timeOffsetArray.length > 1) {
-        let sum = this.sync.timeOffsetArray.reduce(function (a, b) { return a + b; });
-        this.sync.timeOffsetMaster = Math.floor(sum / this.sync.timeOffsetArray.length);
+        let sum = this.sync.timeOffsetArray.reduce(function(a, b) {
+          return a + b;
+        });
+        this.sync.timeOffsetMaster = Math.floor(
+          sum / this.sync.timeOffsetArray.length
+        );
       } else {
         this.sync.timeOffsetMaster = this.sync.curSyncObj.timeOffset;
       }
@@ -2188,7 +2507,7 @@ Cyton.prototype._processPacketTimeSyncSet = function (rawPacket, timeOfPacketArr
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._finalizeNewSample = function (sampleObject) {
+Cyton.prototype._finalizeNewSample = function(sampleObject) {
   sampleObject._count = this.sampleCount++;
   if (!sampleObject.valid) {
     this.badPackets++;
@@ -2217,7 +2536,7 @@ Cyton.prototype._finalizeNewSample = function (sampleObject) {
  * @private
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype._finalizeNewSampleForDaisy = function (sampleObject) {
+Cyton.prototype._finalizeNewSampleForDaisy = function(sampleObject) {
   if (obciUtils.isOdd(sampleObject.sampleNumber)) {
     // Check for the skipped packet condition
     if (this._lowerChannelsSampleObject) {
@@ -2229,11 +2548,14 @@ Cyton.prototype._finalizeNewSampleForDaisy = function (sampleObject) {
     // Make sure there is an odd packet waiting to get merged with this packet
     if (this._lowerChannelsSampleObject) {
       // Merge these two samples
-      let mergedSample = obciUtils.makeDaisySampleObject(this._lowerChannelsSampleObject, sampleObject);
+      let mergedSample = obciUtils.makeDaisySampleObject(
+        this._lowerChannelsSampleObject,
+        sampleObject
+      );
       // Set the _lowerChannelsSampleObject object to null
       this._lowerChannelsSampleObject = null;
       // Emite the new merged sample
-      this.emit('sample', mergedSample);
+      this.emit("sample", mergedSample);
     } else {
       // Missed the odd packet, i.e. two evens in a row
       this.info.missedPackets++;
@@ -2247,21 +2569,25 @@ Cyton.prototype._finalizeNewSampleForDaisy = function (sampleObject) {
  * @returns {Promise} A promise with the time offset
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.sntpGetOffset = function () {
+Cyton.prototype.sntpGetOffset = function() {
   this.options.sntpTimeSync = true;
 
-  if (!this.options.sntpTimeSync) return Promise.reject(Error('sntp not enabled'));
+  if (!this.options.sntpTimeSync)
+    return Promise.reject(Error("sntp not enabled"));
 
   return new Promise((resolve, reject) => {
-    Sntp.offset({
-      host: this.options.sntpTimeSyncHost, // Defaults to pool.ntp.org
-      port: this.options.sntpTimeSyncPort, // Defaults to 123 (NTP)
-      clockSyncRefresh: 30 * 60 * 1000, // Resync every 30 minutes
-      timeout: 500 // Assume packet has been lost after 500 milliseconds
-    }, function (err, offset) {
-      if (err) reject(err);
-      else resolve(offset);
-    });
+    Sntp.offset(
+      {
+        host: this.options.sntpTimeSyncHost, // Defaults to pool.ntp.org
+        port: this.options.sntpTimeSyncPort, // Defaults to 123 (NTP)
+        clockSyncRefresh: 30 * 60 * 1000, // Resync every 30 minutes
+        timeout: 500 // Assume packet has been lost after 500 milliseconds
+      },
+      function(err, offset) {
+        if (err) reject(err);
+        else resolve(offset);
+      }
+    );
   });
 };
 
@@ -2281,23 +2607,26 @@ Cyton.prototype._sntpNow = Sntp.now;
  * @returns {Promise} - A promise if the module was able to sync with ntp server.
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.sntpStart = function (options) {
+Cyton.prototype.sntpStart = function(options) {
   this.options.sntpTimeSync = true;
 
   // Sntp.start doesn't actually report errors (2016-10-29)
   // so functionality is first detected via sntpGetOffset
   return this.sntpGetOffset().then(() => {
     return new Promise((resolve, reject) => {
-      Sntp.start({
-        host: this.options.sntpTimeSyncHost, // Defaults to pool.ntp.org
-        port: this.options.sntpTimeSyncPort, // Defaults to 123 (NTP)
-        clockSyncRefresh: 30 * 60 * 1000, // Resync every 30 minutes
-        timeout: 500 // Assume packet has been lost after 500 milliseconds
-      }, () => {
-        this.sync.sntpActive = true;
-        this.emit('sntpTimeLock');
-        resolve();
-      });
+      Sntp.start(
+        {
+          host: this.options.sntpTimeSyncHost, // Defaults to pool.ntp.org
+          port: this.options.sntpTimeSyncPort, // Defaults to 123 (NTP)
+          clockSyncRefresh: 30 * 60 * 1000, // Resync every 30 minutes
+          timeout: 500 // Assume packet has been lost after 500 milliseconds
+        },
+        () => {
+          this.sync.sntpActive = true;
+          this.emit("sntpTimeLock");
+          resolve();
+        }
+      );
     });
   });
 };
@@ -2305,7 +2634,7 @@ Cyton.prototype.sntpStart = function (options) {
 /**
  * @description Stops the sntp from updating.
  */
-Cyton.prototype.sntpStop = function () {
+Cyton.prototype.sntpStop = function() {
   Sntp.stop();
   this.options.sntpTimeSync = false;
   this.sync.sntpActive = false;
@@ -2316,7 +2645,7 @@ Cyton.prototype.sntpStop = function () {
  * @returns {Number} - The time
  * @author AJ Keller (@pushtheworldllc)
  */
-Cyton.prototype.time = function () {
+Cyton.prototype.time = function() {
   if (this.options.sntpTimeSync) {
     return this._sntpNow();
   } else {
@@ -2329,13 +2658,13 @@ Cyton.prototype.time = function () {
  * @author AJ Keller (@pushtheworldllc)
  */
 /* istanbul ignore next */
-Cyton.prototype.printPacketsBad = function () {
+Cyton.prototype.printPacketsBad = function() {
   if (this.badPackets > 1) {
-    console.log('Dropped a total of ' + this.badPackets + ' packets.');
+    console.log("Dropped a total of " + this.badPackets + " packets.");
   } else if (this.badPackets === 1) {
-    console.log('Dropped a total of 1 packet.');
+    console.log("Dropped a total of 1 packet.");
   } else {
-    console.log('No packets dropped.');
+    console.log("No packets dropped.");
   }
 };
 
@@ -2344,13 +2673,13 @@ Cyton.prototype.printPacketsBad = function () {
  * @author AJ Keller (@pushtheworldllc)
  */
 /* istanbul ignore next */
-Cyton.prototype.printBytesIn = function () {
+Cyton.prototype.printBytesIn = function() {
   if (this.bytesIn > 1) {
-    console.log('Read in ' + this.bytesIn + ' bytes.');
+    console.log("Read in " + this.bytesIn + " bytes.");
   } else if (this.bytesIn === 1) {
-    console.log('Read one 1 packet in.');
+    console.log("Read one 1 packet in.");
   } else {
-    console.log('Read no packets.');
+    console.log("Read no packets.");
   }
 };
 
@@ -2359,7 +2688,7 @@ Cyton.prototype.printBytesIn = function () {
  * @author AJ Keller (@pushtheworldllc)
  */
 /* istanbul ignore next */
-Cyton.prototype.debugSession = function () {
+Cyton.prototype.debugSession = function() {
   this.printBytesIn();
   this.printPacketsBad();
 };
